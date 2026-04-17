@@ -316,3 +316,12 @@ textarea:focus {
 .sidebar a:hover {
     transform: translateX(4px);
 }
+.footer-text a {
+    color: #4f46e5;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.footer-text a:hover {
+    text-decoration: underline;
+}

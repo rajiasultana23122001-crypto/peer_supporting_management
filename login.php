@@ -230,6 +230,9 @@ if (isset($_POST['login'])) {
 
                     <button type="submit" name="login" class="login-btn">Login</button>
                 </form>
+                <p class="footer-text">
+    Don't have an account? <a href="register.php">Register</a>
+</p>
 
                 <p class="footer-text">Secure access for Admin, Therapist & Peer</p>
             </div>
