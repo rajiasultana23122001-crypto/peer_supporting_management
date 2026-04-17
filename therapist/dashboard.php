@@ -69,45 +69,92 @@ $recent_cases = mysqli_query($conn, "
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Therapist Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <style>
-        body { background: #f4f7fb; font-family: 'Segoe UI', sans-serif; }
+        body {
+            background: #f4f7fb;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
         .sidebar {
             min-height: 100vh;
             background: linear-gradient(180deg, #0f172a, #1e293b);
             color: white;
             padding: 25px 15px;
         }
-        .sidebar h3 { font-weight: 700; margin-bottom: 30px; }
-        .sidebar a {
-            color: #fff; text-decoration: none; display: block;
-            padding: 12px 15px; border-radius: 12px; margin-bottom: 10px; transition: 0.3s;
+
+        .sidebar h3 {
+            font-weight: 700;
+            margin-bottom: 30px;
         }
-        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.14); }
+
+        .sidebar a {
+            color: #fff;
+            text-decoration: none;
+            display: block;
+            padding: 12px 15px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            transition: 0.3s;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: rgba(255,255,255,0.14);
+        }
+
         .topbar, .content-card, .stat-card {
-            background: white; border-radius: 20px; padding: 22px;
+            background: white;
+            border-radius: 20px;
+            padding: 22px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.05);
         }
-        .stat-card h2 { font-size: 34px; font-weight: 700; margin: 10px 0 0; }
-        .icon-box {
-            width: 56px; height: 56px; border-radius: 16px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; color: white;
+
+        .stat-card h2 {
+            font-size: 34px;
+            font-weight: 700;
+            margin: 10px 0 0;
         }
+
+        .icon-box {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+        }
+
         .bg1 { background: #3b82f6; }
         .bg2 { background: #10b981; }
         .bg3 { background: #f59e0b; }
-        .table thead { background: #f1f5f9; }
-        .badge-status, .badge-privacy {
-            padding: 6px 10px; border-radius: 20px; font-size: 12px;
+
+        .table thead {
+            background: #f1f5f9;
         }
+
+        .badge-status, .badge-privacy {
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
         .status-open { background: #dbeafe; color: #1d4ed8; }
         .status-in_progress { background: #fef3c7; color: #b45309; }
         .status-resolved { background: #dcfce7; color: #166534; }
         .status-closed { background: #fee2e2; color: #991b1b; }
         .status-referred { background: #ede9fe; color: #6d28d9; }
+
         .privacy-private { background: #fee2e2; color: #991b1b; }
         .privacy-public { background: #dcfce7; color: #166534; }
+
+        .action-btn {
+            border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -115,8 +162,8 @@ $recent_cases = mysqli_query($conn, "
     <div class="row">
         <div class="col-md-3 col-lg-2 sidebar">
             <h3>Therapist Panel</h3>
-            <a href="dashboard.php" class="active"><i class="fas fa-house me-2"></i> Dashboard</a>
-            <a href="../logout.php"><i class="fas fa-right-from-bracket me-2"></i> Logout</a>
+            <a href="dashboard.php" class="active">Dashboard</a>
+            <a href="../logout.php">Logout</a>
         </div>
 
         <div class="col-md-9 col-lg-10 p-4">
@@ -125,29 +172,27 @@ $recent_cases = mysqli_query($conn, "
                     <h2 class="mb-1">Welcome, <?php echo htmlspecialchars($therapist_name); ?></h2>
                     <p class="text-muted mb-0">Monitor assigned peers and their case activities.</p>
                 </div>
-                <a href="../logout.php" class="btn btn-danger rounded-pill px-4">
-                    <i class="fas fa-right-from-bracket me-1"></i> Logout
-                </a>
+                <a href="../logout.php" class="btn btn-danger rounded-pill px-4">Logout</a>
             </div>
 
             <div class="row g-4 mb-4">
                 <div class="col-md-4">
                     <div class="stat-card">
-                        <div class="icon-box bg1"><i class="fas fa-user-group"></i></div>
+                        <div class="icon-box bg1">👥</div>
                         <h2><?php echo $assigned_peers; ?></h2>
                         <p class="text-muted mb-0">Assigned Peers</p>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="stat-card">
-                        <div class="icon-box bg2"><i class="fas fa-folder-open"></i></div>
+                        <div class="icon-box bg2">📂</div>
                         <h2><?php echo $total_visible_cases; ?></h2>
                         <p class="text-muted mb-0">Visible Cases</p>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="stat-card">
-                        <div class="icon-box bg3"><i class="fas fa-triangle-exclamation"></i></div>
+                        <div class="icon-box bg3">⚠️</div>
                         <h2><?php echo $total_open_cases; ?></h2>
                         <p class="text-muted mb-0">Open Cases</p>
                     </div>
@@ -167,6 +212,7 @@ $recent_cases = mysqli_query($conn, "
                                 <th>Status</th>
                                 <th>Privacy</th>
                                 <th>Created</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -184,7 +230,11 @@ $recent_cases = mysqli_query($conn, "
                                     <td><?php echo htmlspecialchars($case['student_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($case['peer_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($case['severity_name'] ?? 'N/A'); ?></td>
-                                    <td><span class="badge-status <?php echo $statusClass; ?>"><?php echo ucwords(str_replace('_', ' ', $case['status'])); ?></span></td>
+                                    <td>
+                                        <span class="badge-status <?php echo $statusClass; ?>">
+                                            <?php echo ucwords(str_replace('_', ' ', $case['status'])); ?>
+                                        </span>
+                                    </td>
                                     <td>
                                         <?php if ($case['is_private'] == 1): ?>
                                             <span class="badge-privacy privacy-private">Private</span>
@@ -193,10 +243,16 @@ $recent_cases = mysqli_query($conn, "
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo htmlspecialchars($case['created_at']); ?></td>
+                                    <td>
+                                        <a href="update_case.php?id=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-primary action-btn">Update</a>
+                                        <a href="add_note.php?id=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-success action-btn">Note</a>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="7" class="text-center text-muted">No assigned cases found.</td></tr>
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No assigned cases found.</td>
+                            </tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
