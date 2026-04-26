@@ -31,20 +31,6 @@ if (isset($_POST['add_case'])) {
     }
 }
 
-/* Delete Case */
-if (isset($_GET['delete'])) {
-    $case_id = intval($_GET['delete']);
-
-    $delete = mysqli_query($conn, "DELETE FROM cases WHERE case_id = '$case_id'");
-
-    if ($delete) {
-        header("Location: cases.php");
-        exit();
-    } else {
-        $error = "Failed to delete case: " . mysqli_error($conn);
-    }
-}
-
 /* Load Edit Data */
 $edit_case = null;
 if (isset($_GET['edit'])) {
@@ -111,10 +97,12 @@ $cases = mysqli_query($conn, "
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Cases | Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
     <style>
         body {
             background: #f4f7fb;
@@ -148,7 +136,8 @@ $cases = mysqli_query($conn, "
             background: rgba(255,255,255,0.18);
         }
 
-        .topbar, .content-card {
+        .topbar,
+        .content-card {
             background: white;
             border-radius: 20px;
             padding: 22px;
@@ -159,7 +148,9 @@ $cases = mysqli_query($conn, "
             background: #f1f5f9;
         }
 
-        .form-control, .form-select, .btn {
+        .form-control,
+        .form-select,
+        .btn {
             border-radius: 12px;
         }
 
@@ -233,6 +224,7 @@ $cases = mysqli_query($conn, "
         }
     </style>
 </head>
+
 <body>
 <div class="container-fluid">
     <div class="row">
@@ -242,15 +234,17 @@ $cases = mysqli_query($conn, "
             <a href="dashboard.php"><i class="fas fa-home me-2"></i> Dashboard</a>
             <a href="users.php"><i class="fas fa-users me-2"></i> Users</a>
             <a href="students.php"><i class="fas fa-user-graduate me-2"></i> Students</a>
+            <a href="assignments.php"><i class="fas fa-link me-2"></i> Assignments</a>
             <a href="cases.php" class="active"><i class="fas fa-folder-open me-2"></i> Cases</a>
             <a href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>
         </div>
 
         <div class="col-md-9 col-lg-10 p-4">
+
             <div class="topbar mb-4 d-flex justify-content-between align-items-center">
                 <div>
                     <h2 class="mb-1">Manage Cases</h2>
-                    <p class="text-muted mb-0">Add, edit and remove case records.</p>
+                    <p class="text-muted mb-0">Add, edit and monitor case records.</p>
                 </div>
                 <a href="dashboard.php" class="btn btn-dark">
                     <i class="fas fa-arrow-left me-1"></i> Back
@@ -266,6 +260,7 @@ $cases = mysqli_query($conn, "
             <?php endif; ?>
 
             <div class="row g-4">
+
                 <div class="col-lg-4">
                     <div class="content-card">
                         <h4 class="mb-3"><?php echo $edit_case ? 'Edit Case' : 'Add Case'; ?></h4>
@@ -345,10 +340,14 @@ $cases = mysqli_query($conn, "
                             </div>
 
                             <?php if ($edit_case): ?>
-                                <button type="submit" name="update_case" class="btn btn-warning w-100">Update Case</button>
+                                <button type="submit" name="update_case" class="btn btn-warning w-100">
+                                    Update Case
+                                </button>
                                 <a href="cases.php" class="btn btn-secondary w-100 mt-2">Cancel</a>
                             <?php else: ?>
-                                <button type="submit" name="add_case" class="btn btn-primary w-100">Add Case</button>
+                                <button type="submit" name="add_case" class="btn btn-primary w-100">
+                                    Add Case
+                                </button>
                             <?php endif; ?>
                         </form>
                     </div>
@@ -358,19 +357,25 @@ $cases = mysqli_query($conn, "
                     <div class="content-card">
                         <h4 class="mb-3">All Cases</h4>
 
+                        <div class="alert alert-light border">
+                            <strong>Note:</strong> Case delete option is disabled to protect case history, notes, activities and notifications.
+                            Use status update such as Resolved or Closed instead.
+                        </div>
+
                         <div class="table-responsive">
                             <table class="table align-middle">
                                 <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Student</th>
-                                        <th>Peer</th>
-                                        <th>Severity</th>
-                                        <th>Status</th>
-                                        <th>Privacy</th>
-                                        <th>Actions</th>
-                                    </tr>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Student</th>
+                                    <th>Peer</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                    <th>Privacy</th>
+                                    <th>Actions</th>
+                                </tr>
                                 </thead>
+
                                 <tbody>
                                 <?php if ($cases && mysqli_num_rows($cases) > 0): ?>
                                     <?php while ($case = mysqli_fetch_assoc($cases)): ?>
@@ -388,6 +393,7 @@ $cases = mysqli_query($conn, "
                                             if ($sevNameLower == 'high') $sevClass = 'sev-high';
                                             if ($sevNameLower == 'critical') $sevClass = 'sev-critical';
                                         ?>
+
                                         <tr>
                                             <td><?php echo $case['case_id']; ?></td>
                                             <td><?php echo htmlspecialchars($case['student_name'] ?? 'N/A'); ?></td>
@@ -413,12 +419,9 @@ $cases = mysqli_query($conn, "
                                                 <a href="cases.php?edit=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-warning">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="cases.php?delete=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-danger"
-                                                   onclick="return confirm('Delete this case?')">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
                                             </td>
                                         </tr>
+
                                     <?php endwhile; ?>
                                 <?php else: ?>
                                     <tr>
@@ -426,11 +429,13 @@ $cases = mysqli_query($conn, "
                                     </tr>
                                 <?php endif; ?>
                                 </tbody>
+
                             </table>
                         </div>
 
                     </div>
                 </div>
+
             </div>
 
         </div>

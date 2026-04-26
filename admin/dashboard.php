@@ -153,6 +153,7 @@ $recent_users = mysqli_query($conn, "SELECT name, email, role, is_active FROM us
             <h3>Admin Panel</h3>
             <a href="dashboard.php" class="active"><i class="fas fa-home me-2"></i> Dashboard</a>
             <a href="users.php"><i class="fas fa-users me-2"></i> Users</a>
+            <a href="assignments.php"><i class="fas fa-link me-2"></i> Assignments</a>
             <a href="students.php"><i class="fas fa-user-graduate me-2"></i> Students</a>
             <a href="cases.php"><i class="fas fa-folder-open me-2"></i> Cases</a>
             <a href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a>

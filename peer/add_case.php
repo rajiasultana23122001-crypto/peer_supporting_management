@@ -6,6 +6,8 @@ if ($_SESSION['role'] != 'peer') {
     die("Access Denied");
 }
 
+$peer_id = $_SESSION['user_id'];
+
 $students = mysqli_query($conn, "SELECT * FROM students ORDER BY name ASC");
 $severity = mysqli_query($conn, "SELECT * FROM flagging ORDER BY severity_id ASC");
 
@@ -17,39 +19,43 @@ if (isset($_POST['add_case'])) {
     $severity_id = mysqli_real_escape_string($conn, $_POST['severity_id']);
     $status = mysqli_real_escape_string($conn, $_POST['status']);
     $is_private = mysqli_real_escape_string($conn, $_POST['is_private']);
-    $created_by = $_SESSION['user_id'];
+    $created_by = $peer_id;
 
     $sql = "INSERT INTO cases (student_id, created_by, severity_id, status, is_private)
             VALUES ('$student_id', '$created_by', '$severity_id', '$status', '$is_private')";
 
     if (mysqli_query($conn, $sql)) {
-       $case_id = mysqli_insert_id($conn);
+        $case_id = mysqli_insert_id($conn);
 
-mysqli_query($conn, "
-    INSERT INTO peer_service_records (peer_id, case_id, action_type)
-    VALUES ('$created_by', '$case_id', 'Case Created')
-");
+        mysqli_query($conn, "
+            INSERT INTO peer_service_records (peer_id, case_id, action_type)
+            VALUES ('$peer_id', '$case_id', 'Case Created')
+        ");
 
-$therapist_query = mysqli_query($conn, "
-    SELECT therapist_id 
-    FROM therapist_peer_assignment 
-    WHERE peer_id = '$created_by' AND is_active = 1
-");
+        $peer_query = mysqli_query($conn, "SELECT name FROM users WHERE user_id = '$peer_id'");
+        $peer_data = mysqli_fetch_assoc($peer_query);
+        $peer_name = $peer_data['name'] ?? 'Peer';
 
-while ($therapist = mysqli_fetch_assoc($therapist_query)) {
-    $therapist_id = $therapist['therapist_id'];
+        $student_query = mysqli_query($conn, "SELECT name FROM students WHERE student_id = '$student_id'");
+        $student_data = mysqli_fetch_assoc($student_query);
+        $student_name = $student_data['name'] ?? 'Student';
 
-    mysqli_query($conn, "
-        INSERT INTO notifications (user_id, case_id, message)
-        VALUES ('$therapist_id', '$case_id', 'New case created by assigned peer')
-    ");
-}
+        $message = mysqli_real_escape_string($conn, "$peer_name created a new case for $student_name");
 
-        while ($therapist = mysqli_fetch_assoc($therapist_query)) {
+        $therapist_query = mysqli_query($conn, "
+            SELECT therapist_id
+            FROM therapist_peer_assignment
+            WHERE peer_id = '$peer_id' AND is_active = 1
+            LIMIT 1
+        ");
+
+        if ($therapist_query && mysqli_num_rows($therapist_query) > 0) {
+            $therapist = mysqli_fetch_assoc($therapist_query);
             $therapist_id = $therapist['therapist_id'];
+
             mysqli_query($conn, "
                 INSERT INTO notifications (user_id, case_id, message)
-                VALUES ('$therapist_id', '$case_id', 'New case created by assigned peer')
+                VALUES ('$therapist_id', '$case_id', '$message')
             ");
         }
 
@@ -70,6 +76,7 @@ while ($therapist = mysqli_fetch_assoc($therapist_query)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="../assets/style.css" rel="stylesheet">
 </head>
+
 <body>
 
 <div class="dashboard-wrapper">
