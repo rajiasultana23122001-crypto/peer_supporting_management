@@ -13,7 +13,28 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'therapist') {
 $therapist_id = $_SESSION['user_id'];
 $therapist_name = $_SESSION['name'];
 
-/* Total assigned peers */
+/* Notifications */
+$notifications = mysqli_query($conn, "
+    SELECT n.*, c.status
+    FROM notifications n
+    LEFT JOIN cases c ON n.case_id = c.case_id
+    WHERE n.user_id = '$therapist_id'
+    ORDER BY n.notification_id DESC
+    LIMIT 5
+");
+
+$unread_count_result = mysqli_query($conn, "
+    SELECT COUNT(*) AS total
+    FROM notifications
+    WHERE user_id = '$therapist_id' AND is_read = 0
+");
+
+$unread_count = 0;
+if ($unread_count_result) {
+    $unread_count = mysqli_fetch_assoc($unread_count_result)['total'] ?? 0;
+}
+
+/* Assigned peers */
 $assigned_peers_result = mysqli_query($conn, "
     SELECT COUNT(*) AS total_assigned_peers
     FROM therapist_peer_assignment
@@ -21,7 +42,7 @@ $assigned_peers_result = mysqli_query($conn, "
 ");
 $assigned_peers = mysqli_fetch_assoc($assigned_peers_result)['total_assigned_peers'] ?? 0;
 
-/* Total visible cases from assigned peers */
+/* Visible cases */
 $visible_cases_result = mysqli_query($conn, "
     SELECT COUNT(*) AS total_visible_cases
     FROM cases c
@@ -40,6 +61,39 @@ $open_cases_result = mysqli_query($conn, "
       AND c.status = 'open'
 ");
 $total_open_cases = mysqli_fetch_assoc($open_cases_result)['total_open_cases'] ?? 0;
+
+/* Analytics: solved cases */
+$solved_result = mysqli_query($conn, "
+    SELECT COUNT(*) AS total_solved
+    FROM cases c
+    INNER JOIN therapist_peer_assignment tpa ON c.created_by = tpa.peer_id
+    WHERE tpa.therapist_id = '$therapist_id'
+      AND tpa.is_active = 1
+      AND c.status = 'resolved'
+");
+$solved_cases = mysqli_fetch_assoc($solved_result)['total_solved'] ?? 0;
+
+/* Analytics: pending cases */
+$pending_result = mysqli_query($conn, "
+    SELECT COUNT(*) AS total_pending
+    FROM cases c
+    INNER JOIN therapist_peer_assignment tpa ON c.created_by = tpa.peer_id
+    WHERE tpa.therapist_id = '$therapist_id'
+      AND tpa.is_active = 1
+      AND (c.status = 'open' OR c.status = 'in_progress')
+");
+$pending_cases = mysqli_fetch_assoc($pending_result)['total_pending'] ?? 0;
+
+/* Analytics: closed cases */
+$closed_result = mysqli_query($conn, "
+    SELECT COUNT(*) AS total_closed
+    FROM cases c
+    INNER JOIN therapist_peer_assignment tpa ON c.created_by = tpa.peer_id
+    WHERE tpa.therapist_id = '$therapist_id'
+      AND tpa.is_active = 1
+      AND c.status = 'closed'
+");
+$closed_cases = mysqli_fetch_assoc($closed_result)['total_closed'] ?? 0;
 
 /* Recent visible cases */
 $recent_cases = mysqli_query($conn, "
@@ -66,9 +120,12 @@ $recent_cases = mysqli_query($conn, "
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Therapist Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         body {
             background: #f4f7fb;
@@ -102,7 +159,9 @@ $recent_cases = mysqli_query($conn, "
             background: rgba(255,255,255,0.14);
         }
 
-        .topbar, .content-card, .stat-card {
+        .topbar,
+        .content-card,
+        .stat-card {
             background: white;
             border-radius: 20px;
             padding: 22px;
@@ -129,12 +188,16 @@ $recent_cases = mysqli_query($conn, "
         .bg1 { background: #3b82f6; }
         .bg2 { background: #10b981; }
         .bg3 { background: #f59e0b; }
+        .bg4 { background: #22c55e; }
+        .bg5 { background: #f97316; }
+        .bg6 { background: #ef4444; }
 
         .table thead {
             background: #f1f5f9;
         }
 
-        .badge-status, .badge-privacy {
+        .badge-status,
+        .badge-privacy {
             padding: 6px 10px;
             border-radius: 20px;
             font-size: 12px;
@@ -155,11 +218,30 @@ $recent_cases = mysqli_query($conn, "
             font-size: 12px;
             margin-right: 4px;
         }
+
+        .notification-box {
+            background: #eff6ff;
+            border-left: 5px solid #3b82f6;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .notification-box small {
+            color: #64748b;
+        }
+
+        .chart-wrapper {
+            max-width: 430px;
+            margin: auto;
+        }
     </style>
 </head>
+
 <body>
 <div class="container-fluid">
     <div class="row">
+
         <div class="col-md-3 col-lg-2 sidebar">
             <h3>Therapist Panel</h3>
             <a href="dashboard.php" class="active">Dashboard</a>
@@ -167,12 +249,33 @@ $recent_cases = mysqli_query($conn, "
         </div>
 
         <div class="col-md-9 col-lg-10 p-4">
+
             <div class="topbar mb-4 d-flex justify-content-between align-items-center">
                 <div>
                     <h2 class="mb-1">Welcome, <?php echo htmlspecialchars($therapist_name); ?></h2>
                     <p class="text-muted mb-0">Monitor assigned peers and their case activities.</p>
                 </div>
                 <a href="../logout.php" class="btn btn-danger rounded-pill px-4">Logout</a>
+            </div>
+
+            <div class="content-card mb-4">
+                <h4 class="mb-3">
+                    Notifications
+                    <span class="badge bg-danger"><?php echo $unread_count; ?></span>
+                </h4>
+
+                <?php if ($notifications && mysqli_num_rows($notifications) > 0): ?>
+                    <?php while ($noti = mysqli_fetch_assoc($notifications)): ?>
+                        <div class="notification-box">
+                            <strong>Case #<?php echo htmlspecialchars($noti['case_id']); ?>:</strong>
+                            <?php echo htmlspecialchars($noti['message']); ?>
+                            <br>
+                            <small><?php echo htmlspecialchars($noti['created_at']); ?></small>
+                        </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="alert alert-light border mb-0">No notifications yet.</div>
+                <?php endif; ?>
             </div>
 
             <div class="row g-4 mb-4">
@@ -183,6 +286,7 @@ $recent_cases = mysqli_query($conn, "
                         <p class="text-muted mb-0">Assigned Peers</p>
                     </div>
                 </div>
+
                 <div class="col-md-4">
                     <div class="stat-card">
                         <div class="icon-box bg2">📂</div>
@@ -190,6 +294,7 @@ $recent_cases = mysqli_query($conn, "
                         <p class="text-muted mb-0">Visible Cases</p>
                     </div>
                 </div>
+
                 <div class="col-md-4">
                     <div class="stat-card">
                         <div class="icon-box bg3">⚠️</div>
@@ -199,40 +304,90 @@ $recent_cases = mysqli_query($conn, "
                 </div>
             </div>
 
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="icon-box bg4">✔</div>
+                        <h2><?php echo $solved_cases; ?></h2>
+                        <p class="text-muted mb-0">Solved Cases</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="icon-box bg5">⏳</div>
+                        <h2><?php echo $pending_cases; ?></h2>
+                        <p class="text-muted mb-0">Pending Cases</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="icon-box bg6">🔒</div>
+                        <h2><?php echo $closed_cases; ?></h2>
+                        <p class="text-muted mb-0">Closed Cases</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card mb-4">
+                <h4 class="mb-3">Case Analytics</h4>
+                <p class="text-muted">Solved, Pending, and Closed case overview.</p>
+
+                <div class="chart-wrapper">
+                    <canvas id="caseChart"></canvas>
+                </div>
+            </div>
+
             <div class="content-card">
                 <h4 class="mb-3">Recent Assigned Cases</h4>
+
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Student</th>
-                                <th>Peer</th>
-                                <th>Severity</th>
-                                <th>Status</th>
-                                <th>Privacy</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
+                        <tr>
+                            <th>ID</th>
+                            <th>Student</th>
+                            <th>Peer</th>
+                            <th>Severity</th>
+                            <th>Status</th>
+                            <th>Privacy</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
                         </thead>
+
                         <tbody>
                         <?php if ($recent_cases && mysqli_num_rows($recent_cases) > 0): ?>
                             <?php while ($case = mysqli_fetch_assoc($recent_cases)): ?>
                                 <?php
-                                    $statusClass = 'status-open';
-                                    if ($case['status'] == 'in_progress') $statusClass = 'status-in_progress';
-                                    if ($case['status'] == 'resolved') $statusClass = 'status-resolved';
-                                    if ($case['status'] == 'closed') $statusClass = 'status-closed';
-                                    if ($case['status'] == 'referred') $statusClass = 'status-referred';
+                                $statusClass = 'status-open';
+
+                                if ($case['status'] == 'in_progress') {
+                                    $statusClass = 'status-in_progress';
+                                }
+
+                                if ($case['status'] == 'resolved') {
+                                    $statusClass = 'status-resolved';
+                                }
+
+                                if ($case['status'] == 'closed') {
+                                    $statusClass = 'status-closed';
+                                }
+
+                                if ($case['status'] == 'referred') {
+                                    $statusClass = 'status-referred';
+                                }
                                 ?>
+
                                 <tr>
-                                    <td><?php echo $case['case_id']; ?></td>
+                                    <td><?php echo htmlspecialchars($case['case_id']); ?></td>
                                     <td><?php echo htmlspecialchars($case['student_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($case['peer_name'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($case['severity_name'] ?? 'N/A'); ?></td>
                                     <td>
                                         <span class="badge-status <?php echo $statusClass; ?>">
-                                            <?php echo ucwords(str_replace('_', ' ', $case['status'])); ?>
+                                            <?php echo ucwords(str_replace('_', ' ', htmlspecialchars($case['status']))); ?>
                                         </span>
                                     </td>
                                     <td>
@@ -244,10 +399,18 @@ $recent_cases = mysqli_query($conn, "
                                     </td>
                                     <td><?php echo htmlspecialchars($case['created_at']); ?></td>
                                     <td>
-                                        <a href="update_case.php?id=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-primary action-btn">Update</a>
-                                        <a href="add_note.php?id=<?php echo $case['case_id']; ?>" class="btn btn-sm btn-success action-btn">Note</a>
+                                        <a href="update_case.php?id=<?php echo $case['case_id']; ?>"
+                                           class="btn btn-sm btn-primary action-btn">
+                                            Update
+                                        </a>
+
+                                        <a href="add_note.php?id=<?php echo $case['case_id']; ?>"
+                                           class="btn btn-sm btn-success action-btn">
+                                            Note
+                                        </a>
                                     </td>
                                 </tr>
+
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
@@ -255,6 +418,7 @@ $recent_cases = mysqli_query($conn, "
                             </tr>
                         <?php endif; ?>
                         </tbody>
+
                     </table>
                 </div>
             </div>
@@ -262,5 +426,33 @@ $recent_cases = mysqli_query($conn, "
         </div>
     </div>
 </div>
+
+<script>
+const ctx = document.getElementById('caseChart');
+
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: ['Solved', 'Pending', 'Closed'],
+        datasets: [{
+            data: [
+                <?php echo $solved_cases; ?>,
+                <?php echo $pending_cases; ?>,
+                <?php echo $closed_cases; ?>
+            ],
+            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+
 </body>
 </html>

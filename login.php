@@ -3,27 +3,34 @@ session_start();
 include('config/db.php');
 
 if (isset($_POST['login'])) {
-    $email = $_POST['email'];
-    $password = $_POST['password'];
+    $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+    $password = trim($_POST['password']);
 
-    $sql = "SELECT * FROM users WHERE email='$email' AND password_hash='$password' AND is_active=1";
+    $sql = "SELECT * FROM users WHERE email='$email' AND is_active=1 LIMIT 1";
     $result = mysqli_query($conn, $sql);
 
-    if (mysqli_num_rows($result) == 1) {
+    if ($result && mysqli_num_rows($result) == 1) {
         $user = mysqli_fetch_assoc($result);
+        $db_password = $user['password_hash'];
 
-        $_SESSION['user_id'] = $user['user_id'];
-        $_SESSION['name'] = $user['name'];
-        $_SESSION['role'] = $user['role'];
+        if (password_verify($password, $db_password) || $password === $db_password) {
 
-        if ($user['role'] == 'admin') {
-            header("Location: admin/dashboard.php");
-        } elseif ($user['role'] == 'therapist') {
-            header("Location: therapist/dashboard.php");
+            $_SESSION['user_id'] = $user['user_id'];
+            $_SESSION['name'] = $user['name'];
+            $_SESSION['role'] = $user['role'];
+
+            if ($user['role'] == 'admin') {
+                header("Location: admin/dashboard.php");
+            } elseif ($user['role'] == 'therapist') {
+                header("Location: therapist/dashboard.php");
+            } else {
+                header("Location: peer/dashboard.php");
+            }
+            exit();
+
         } else {
-            header("Location: peer/dashboard.php");
+            $error = "Invalid email or password!";
         }
-        exit();
     } else {
         $error = "Invalid email or password!";
     }
@@ -217,22 +224,23 @@ if (isset($_POST['login'])) {
                     <div class="error-msg"><?php echo $error; ?></div>
                 <?php endif; ?>
 
-                <form method="POST">
+                <form method="POST" autocomplete="off">
                     <div class="input-group">
                         <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                        <input type="email" id="email" name="email" placeholder="Enter your email" required autocomplete="off">
                     </div>
 
                     <div class="input-group">
                         <label for="password">Password</label>
-                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                        <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="new-password">
                     </div>
 
                     <button type="submit" name="login" class="login-btn">Login</button>
                 </form>
+
                 <p class="footer-text">
-    Don't have an account? <a href="register.php">Register</a>
-</p>
+                    Don't have an account? <a href="register.php">Register</a>
+                </p>
 
                 <p class="footer-text">Secure access for Admin, Therapist & Peer</p>
             </div>

@@ -1,4 +1,6 @@
 <?php
+mysqli_report(MYSQLI_REPORT_OFF);
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -15,16 +17,17 @@ $error = "";
 
 /* Add Student */
 if (isset($_POST['add_student'])) {
-    $student_id = mysqli_real_escape_string($conn, $_POST['student_id']);
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $department = mysqli_real_escape_string($conn, $_POST['department']);
-    $academic_year = mysqli_real_escape_string($conn, $_POST['academic_year']);
-    $contact_info = mysqli_real_escape_string($conn, $_POST['contact_info']);
+    $student_id = mysqli_real_escape_string($conn, trim($_POST['student_id']));
+    $name = mysqli_real_escape_string($conn, trim($_POST['name']));
+    $department = mysqli_real_escape_string($conn, trim($_POST['department']));
+    $academic_year = mysqli_real_escape_string($conn, trim($_POST['academic_year']));
+    $contact_info = mysqli_real_escape_string($conn, trim($_POST['contact_info']));
     $consent_given = isset($_POST['consent_given']) ? 1 : 0;
 
-    $check = mysqli_query($conn, "SELECT * FROM students WHERE student_id='$student_id'");
-    if (mysqli_num_rows($check) > 0) {
-        $error = "Student ID already exists!";
+    $check = mysqli_query($conn, "SELECT student_id FROM students WHERE student_id='$student_id'");
+
+    if ($check && mysqli_num_rows($check) > 0) {
+        $error = "Student ID already exists! Please use another Student ID.";
     } else {
         $sql = "INSERT INTO students (student_id, name, department, academic_year, contact_info, consent_given)
                 VALUES ('$student_id', '$name', '$department', '$academic_year', '$contact_info', '$consent_given')";
@@ -39,8 +42,29 @@ if (isset($_POST['add_student'])) {
 
 /* Delete Student */
 if (isset($_GET['delete'])) {
-    $student_id = intval($_GET['delete']);
-    $delete = mysqli_query($conn, "DELETE FROM students WHERE student_id = '$student_id'");
+    $student_id = mysqli_real_escape_string($conn, $_GET['delete']);
+
+    $case_ids = [];
+    $case_result = mysqli_query($conn, "SELECT case_id FROM cases WHERE student_id='$student_id'");
+
+    if ($case_result) {
+        while ($row = mysqli_fetch_assoc($case_result)) {
+            $case_ids[] = $row['case_id'];
+        }
+    }
+
+    if (!empty($case_ids)) {
+        $ids = implode(",", array_map('intval', $case_ids));
+
+        mysqli_query($conn, "DELETE FROM case_notes WHERE case_id IN ($ids)");
+        mysqli_query($conn, "DELETE FROM referrals WHERE case_id IN ($ids)");
+        mysqli_query($conn, "DELETE FROM peer_service_records WHERE case_id IN ($ids)");
+        mysqli_query($conn, "DELETE FROM audit_log WHERE case_id IN ($ids)");
+        mysqli_query($conn, "DELETE FROM case_access_permission WHERE case_id IN ($ids)");
+        mysqli_query($conn, "DELETE FROM cases WHERE case_id IN ($ids)");
+    }
+
+    $delete = mysqli_query($conn, "DELETE FROM students WHERE student_id='$student_id'");
 
     if ($delete) {
         header("Location: students.php");
@@ -52,9 +76,12 @@ if (isset($_GET['delete'])) {
 
 /* Get Student For Edit */
 $edit_student = null;
+
 if (isset($_GET['edit'])) {
-    $student_id = intval($_GET['edit']);
-    $result = mysqli_query($conn, "SELECT * FROM students WHERE student_id = '$student_id'");
+    $student_id = mysqli_real_escape_string($conn, $_GET['edit']);
+
+    $result = mysqli_query($conn, "SELECT * FROM students WHERE student_id='$student_id'");
+
     if ($result && mysqli_num_rows($result) > 0) {
         $edit_student = mysqli_fetch_assoc($result);
     }
@@ -62,16 +89,17 @@ if (isset($_GET['edit'])) {
 
 /* Update Student */
 if (isset($_POST['update_student'])) {
-    $old_student_id = intval($_POST['old_student_id']);
-    $student_id = mysqli_real_escape_string($conn, $_POST['student_id']);
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $department = mysqli_real_escape_string($conn, $_POST['department']);
-    $academic_year = mysqli_real_escape_string($conn, $_POST['academic_year']);
-    $contact_info = mysqli_real_escape_string($conn, $_POST['contact_info']);
+    $old_student_id = mysqli_real_escape_string($conn, $_POST['old_student_id']);
+    $student_id = mysqli_real_escape_string($conn, trim($_POST['student_id']));
+    $name = mysqli_real_escape_string($conn, trim($_POST['name']));
+    $department = mysqli_real_escape_string($conn, trim($_POST['department']));
+    $academic_year = mysqli_real_escape_string($conn, trim($_POST['academic_year']));
+    $contact_info = mysqli_real_escape_string($conn, trim($_POST['contact_info']));
     $consent_given = isset($_POST['consent_given']) ? 1 : 0;
 
-    $check = mysqli_query($conn, "SELECT * FROM students WHERE student_id='$student_id' AND student_id != '$old_student_id'");
-    if (mysqli_num_rows($check) > 0) {
+    $check = mysqli_query($conn, "SELECT student_id FROM students WHERE student_id='$student_id' AND student_id != '$old_student_id'");
+
+    if ($check && mysqli_num_rows($check) > 0) {
         $error = "Another student already uses this Student ID!";
     } else {
         $sql = "UPDATE students 
@@ -101,23 +129,28 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Students | Admin Panel</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
     <style>
         body {
             background: #f4f7fb;
             font-family: 'Segoe UI', sans-serif;
         }
+
         .sidebar {
             min-height: 100vh;
             background: linear-gradient(180deg, #4f46e5, #7c3aed);
             color: white;
             padding: 25px 15px;
         }
+
         .sidebar h3 {
             font-weight: 700;
             margin-bottom: 30px;
         }
+
         .sidebar a {
             color: #fff;
             text-decoration: none;
@@ -127,22 +160,29 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
             margin-bottom: 10px;
             transition: 0.3s;
         }
+
         .sidebar a:hover,
         .sidebar a.active {
             background: rgba(255,255,255,0.18);
         }
-        .topbar, .content-card {
+
+        .topbar,
+        .content-card {
             background: white;
             border-radius: 20px;
             padding: 22px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.05);
         }
+
         .table thead {
             background: #f1f5f9;
         }
-        .form-control, .btn {
+
+        .form-control,
+        .btn {
             border-radius: 12px;
         }
+
         .badge-yes {
             background: #dcfce7;
             color: #166534;
@@ -150,6 +190,7 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
             border-radius: 20px;
             font-size: 12px;
         }
+
         .badge-no {
             background: #fee2e2;
             color: #991b1b;
@@ -159,6 +200,7 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
         }
     </style>
 </head>
+
 <body>
 <div class="container-fluid">
     <div class="row">
@@ -173,6 +215,7 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
         </div>
 
         <div class="col-md-9 col-lg-10 p-4">
+
             <div class="topbar mb-4 d-flex justify-content-between align-items-center">
                 <div>
                     <h2 class="mb-1">Manage Students</h2>
@@ -192,25 +235,31 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
             <?php endif; ?>
 
             <div class="row g-4">
+
                 <div class="col-lg-4">
                     <div class="content-card">
-                        <h4 class="mb-3"><?php echo $edit_student ? 'Edit Student' : 'Add Student'; ?></h4>
+                        <h4 class="mb-3">
+                            <?php echo $edit_student ? 'Edit Student' : 'Add Student'; ?>
+                        </h4>
 
                         <form method="POST">
                             <?php if ($edit_student): ?>
-                                <input type="hidden" name="old_student_id" value="<?php echo $edit_student['student_id']; ?>">
+                                <input type="hidden" name="old_student_id"
+                                       value="<?php echo htmlspecialchars($edit_student['student_id']); ?>">
                             <?php endif; ?>
 
                             <div class="mb-3">
                                 <label class="form-label">Student ID</label>
-                                <input type="number" name="student_id" class="form-control"
-                                       value="<?php echo $edit_student ? htmlspecialchars($edit_student['student_id']) : ''; ?>" required>
+                                <input type="text" name="student_id" class="form-control"
+                                       value="<?php echo $edit_student ? htmlspecialchars($edit_student['student_id']) : ''; ?>"
+                                       required>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label">Student Name</label>
                                 <input type="text" name="name" class="form-control"
-                                       value="<?php echo $edit_student ? htmlspecialchars($edit_student['name']) : ''; ?>" required>
+                                       value="<?php echo $edit_student ? htmlspecialchars($edit_student['name']) : ''; ?>"
+                                       required>
                             </div>
 
                             <div class="mb-3">
@@ -240,10 +289,14 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
                             </div>
 
                             <?php if ($edit_student): ?>
-                                <button type="submit" name="update_student" class="btn btn-warning w-100">Update Student</button>
+                                <button type="submit" name="update_student" class="btn btn-warning w-100">
+                                    Update Student
+                                </button>
                                 <a href="students.php" class="btn btn-secondary w-100 mt-2">Cancel</a>
                             <?php else: ?>
-                                <button type="submit" name="add_student" class="btn btn-primary w-100">Add Student</button>
+                                <button type="submit" name="add_student" class="btn btn-primary w-100">
+                                    Add Student
+                                </button>
                             <?php endif; ?>
                         </form>
                     </div>
@@ -256,21 +309,22 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
                         <div class="table-responsive">
                             <table class="table align-middle">
                                 <thead>
-                                    <tr>
-                                        <th>Student ID</th>
-                                        <th>Name</th>
-                                        <th>Department</th>
-                                        <th>Academic Year</th>
-                                        <th>Contact Info</th>
-                                        <th>Consent</th>
-                                        <th width="140">Actions</th>
-                                    </tr>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Academic Year</th>
+                                    <th>Contact Info</th>
+                                    <th>Consent</th>
+                                    <th width="140">Actions</th>
+                                </tr>
                                 </thead>
+
                                 <tbody>
                                 <?php if ($students && mysqli_num_rows($students) > 0): ?>
                                     <?php while ($student = mysqli_fetch_assoc($students)): ?>
                                         <tr>
-                                            <td><?php echo $student['student_id']; ?></td>
+                                            <td><?php echo htmlspecialchars($student['student_id']); ?></td>
                                             <td><?php echo htmlspecialchars($student['name']); ?></td>
                                             <td><?php echo htmlspecialchars($student['department']); ?></td>
                                             <td><?php echo htmlspecialchars($student['academic_year']); ?></td>
@@ -283,11 +337,14 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <a href="students.php?edit=<?php echo $student['student_id']; ?>" class="btn btn-sm btn-warning">
+                                                <a href="students.php?edit=<?php echo urlencode($student['student_id']); ?>"
+                                                   class="btn btn-sm btn-warning">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="students.php?delete=<?php echo $student['student_id']; ?>" class="btn btn-sm btn-danger"
-                                                   onclick="return confirm('Delete this student?')">
+
+                                                <a href="students.php?delete=<?php echo urlencode($student['student_id']); ?>"
+                                                   class="btn btn-sm btn-danger"
+                                                   onclick="return confirm('Delete this student? Related cases will also be deleted.')">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </td>
@@ -299,11 +356,13 @@ $students = mysqli_query($conn, "SELECT * FROM students ORDER BY student_id DESC
                                     </tr>
                                 <?php endif; ?>
                                 </tbody>
+
                             </table>
                         </div>
 
                     </div>
                 </div>
+
             </div>
 
         </div>

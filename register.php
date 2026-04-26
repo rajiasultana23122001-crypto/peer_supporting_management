@@ -10,7 +10,9 @@ $error = "";
 if (isset($_POST['register'])) {
     $name = mysqli_real_escape_string($conn, trim($_POST['name']));
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
-    $password = mysqli_real_escape_string($conn, trim($_POST['password']));
+    $password = trim($_POST['password']);
+$hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
     $role = mysqli_real_escape_string($conn, trim($_POST['role']));
     $department = mysqli_real_escape_string($conn, trim($_POST['department']));
 
@@ -19,11 +21,11 @@ if (isset($_POST['register'])) {
     } else {
         $check = mysqli_query($conn, "SELECT * FROM users WHERE email = '$email'");
 
-        if (mysqli_num_rows($check) > 0) {
+        if ($check && mysqli_num_rows($check) > 0) {
             $error = "This email is already registered.";
         } else {
             $sql = "INSERT INTO users (name, email, password_hash, role, department, is_active)
-                    VALUES ('$name', '$email', '$password', '$role', '$department', 1)";
+                    VALUES ('$name', '$email', '$hashed_password', '$role', '$department', 1)";
 
             if (mysqli_query($conn, $sql)) {
                 $success = "Registration successful! You can now login.";
@@ -42,6 +44,7 @@ if (isset($_POST['register'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register | Peer Supporting Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         * {
             margin: 0;
@@ -202,10 +205,6 @@ if (isset($_POST['register'])) {
             font-weight: 600;
         }
 
-        .footer-text a:hover {
-            text-decoration: underline;
-        }
-
         @media (max-width: 860px) {
             .register-wrapper {
                 grid-template-columns: 1fr;
@@ -225,67 +224,68 @@ if (isset($_POST['register'])) {
         }
     </style>
 </head>
+
 <body>
-    <div class="register-wrapper">
-        <div class="register-left">
-            <h1>Create Your Account</h1>
-            <p>
-                Join the Peer Supporting Management System as a peer or therapist.
-                Create your profile and access your role-based dashboard securely.
+<div class="register-wrapper">
+    <div class="register-left">
+        <h1>Create Your Account</h1>
+        <p>
+            Join the Peer Supporting Management System as a peer or therapist.
+            Create your profile and access your role-based dashboard securely.
+        </p>
+    </div>
+
+    <div class="register-right">
+        <div class="register-card">
+            <h2>Register</h2>
+            <p class="subtitle">Fill in your details to create a new account</p>
+
+            <?php if ($success): ?>
+                <div class="success-msg"><?php echo $success; ?></div>
+            <?php endif; ?>
+
+            <?php if ($error): ?>
+                <div class="error-msg"><?php echo $error; ?></div>
+            <?php endif; ?>
+
+            <form method="POST">
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" placeholder="Enter your full name" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" placeholder="Enter your email" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" name="password" placeholder="Create a password" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Department</label>
+                    <input type="text" name="department" placeholder="Enter department">
+                </div>
+
+                <div class="input-group">
+                    <label>Select Role</label>
+                    <select name="role" required>
+                        <option value="">Choose role</option>
+                        <option value="peer">Peer</option>
+                        <option value="therapist">Therapist</option>
+                    </select>
+                </div>
+
+                <button type="submit" name="register" class="register-btn">Create Account</button>
+            </form>
+
+            <p class="footer-text">
+                Already have an account? <a href="login.php">Login</a>
             </p>
         </div>
-
-        <div class="register-right">
-            <div class="register-card">
-                <h2>Register</h2>
-                <p class="subtitle">Fill in your details to create a new account</p>
-
-                <?php if ($success) : ?>
-                    <div class="success-msg"><?php echo $success; ?></div>
-                <?php endif; ?>
-
-                <?php if ($error) : ?>
-                    <div class="error-msg"><?php echo $error; ?></div>
-                <?php endif; ?>
-
-                <form method="POST">
-                    <div class="input-group">
-                        <label for="name">Full Name</label>
-                        <input type="text" id="name" name="name" placeholder="Enter your full name" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" placeholder="Enter your email" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="text" id="password" name="password" placeholder="Create a password" required>
-                    </div>
-
-                    <div class="input-group">
-                        <label for="department">Department</label>
-                        <input type="text" id="department" name="department" placeholder="Enter department">
-                    </div>
-
-                    <div class="input-group">
-                        <label for="role">Select Role</label>
-                        <select id="role" name="role" required>
-                            <option value="">Choose role</option>
-                            <option value="peer">Peer</option>
-                            <option value="therapist">Therapist</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" name="register" class="register-btn">Create Account</button>
-                </form>
-
-                <p class="footer-text">
-                    Already have an account? <a href="login.php">Login</a>
-                </p>
-            </div>
-        </div>
     </div>
+</div>
 </body>
 </html>
